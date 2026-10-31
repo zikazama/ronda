@@ -66,16 +66,48 @@ Langkah manual di konsol (tidak bisa lewat CLI):
 
 1. Authentication → Sign-in method → aktifkan **Anonymous**.
 2. Firebase AI Logic → Get started → **Gemini Developer API** (tier gratis).
-3. (Sebelum rilis publik) aktifkan **App Check** (Play Integrity).
+3. **App Check** → daftarkan aplikasi Android dengan **Play Integrity** (butuh SHA-256
+   kunci rilis) → baru setelah itu pilih *Enforce* untuk Firestore & AI Logic.
+   Kode klien sudah mengaktifkan App Check (provider *debug* di build debug;
+   daftarkan debug token dari logcat bila ingin menguji dengan enforcement aktif).
+   Di web App Check dilewati (butuh reCAPTCHA site key).
 
 Tanpa langkah itu aplikasi tetap jalan memakai Lapis 1 & 3 saja.
 
+## Build Android
+
+Butuh JDK 17 dan Android SDK (platform 36 & 37, build-tools 36.0.0).
+
+```bash
+flutter build apk --debug      # build/app/outputs/flutter-apk/app-debug.apk
+flutter build apk --release    # R8 aktif; saat ini ditandatangani kunci debug
+```
+
+Catatan: `compileSdk = 37` karena `permission_handler_android` menuntutnya; AGP 9.1
+baru merekomendasikan sampai 36 (peringatan disenyapkan di `gradle.properties`).
+Untuk rilis publik buat keystore sendiri dan daftarkan SHA-256-nya di App Check.
+
+Setelah terpasang: Profil → aktifkan **Akses notifikasi** dan **Tampil di atas aplikasi lain**.
+
 ## Status & keterbatasan
 
-- Dart: `flutter analyze` bersih, 33 tes lulus.
-- Kode Kotlin & build APK **belum diverifikasi** (mesin pengembang tanpa Android SDK/JDK).
-  Uji di perangkat nyata sebelum demo.
-- Nama model Gemini (`AppConstants.geminiModel`) perlu dicek ketersediaannya.
+Terverifikasi di mesin pengembang:
+
+- `flutter analyze` bersih, 33 tes lulus, `flutter build web` dan `flutter build apk`
+  (debug & release) berhasil; kelas Kotlin dan manifest ada di APK.
+- Backend sungguhan: anonymous sign-in, Gemini (`gemini-3.5-flash-lite`) lewat AI Logic,
+  dan aturan Firestore (laporan unik diterima, duplikat ditolak, sel peta tidak bisa
+  digelembungkan tanpa laporan, `user_reports` tidak bisa dibaca).
+
+Belum terverifikasi (butuh perangkat Android nyata):
+
+- Perilaku runtime Kotlin: pembacaan notifikasi WhatsApp/SMS, overlay, alarm/getar,
+  pengecekan kontak, engine yang tetap hidup saat aplikasi ditutup.
+- App Check dengan enforcement aktif.
+
+Keterbatasan desain:
+
 - Tingkat MEDIUM hanya masuk riwayat (tanpa overlay). "Blokir" bersifat level
   aplikasi, bukan pemblokiran nomor di tingkat OS.
 - Pengguna anonim bisa dibuat berulang → App Check wajib untuk produksi.
+- Build memperingatkan plugin Firebase masih memakai Kotlin Gradle Plugin (tidak fatal sekarang).

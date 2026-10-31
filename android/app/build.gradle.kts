@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "id.web.ronda"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android menuntut compileSdk 37 (AGP 9.1 baru
+    // merekomendasikan maks 36; peringatannya disenyapkan di gradle.properties).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

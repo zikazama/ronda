@@ -53,6 +53,8 @@ class CommunityReporter {
       batch.set(fs.collection('threat_cells').doc('${h3Cell}_${kind.code}'), {
         'cell': h3Cell,
         'kind': kind.code,
+        // Mengaitkan kenaikan sel dengan laporan unik pengguna (diverifikasi rules).
+        'lastSuspectKey': suspectKey,
         'reports': FieldValue.increment(1),
         'lastReportAt': now,
       }, SetOptions(merge: true));

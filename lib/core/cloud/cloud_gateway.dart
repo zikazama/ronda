@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -63,11 +64,28 @@ class CloudGateway {
     Duration wait = const Duration(seconds: 2),
   }) => services().timeout(wait, onTimeout: () => null);
 
+  /// App Check (Play Integrity) agar hanya aplikasi asli yang boleh memakai
+  /// Firestore/Gemini. Gagal diaktifkan tidak boleh mematikan fitur lain.
+  /// Di web dilewati (butuh reCAPTCHA site key); lihat README.
+  Future<void> _activateAppCheck(FirebaseApp app) async {
+    if (kIsWeb) return;
+    try {
+      await FirebaseAppCheck.instanceFor(app: app).activate(
+        providerAndroid: kDebugMode
+            ? const AndroidDebugProvider()
+            : const AndroidPlayIntegrityProvider(),
+      );
+    } catch (e) {
+      debugPrint('App Check tidak aktif: $e');
+    }
+  }
+
   Future<CloudServices?> _init() async {
     try {
       final app = Firebase.apps.isEmpty
           ? await Firebase.initializeApp(options: _resolved)
           : Firebase.app();
+      await _activateAppCheck(app);
       final auth = FirebaseAuth.instanceFor(app: app);
       final user =
           auth.currentUser ??

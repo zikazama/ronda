@@ -103,14 +103,21 @@ service cloud.firestore {
         && validCell(request.resource.data)
         && request.resource.data.reports == resource.data.reports + 1;
 
+      // Kenaikan sel hanya sah bila ada laporan unik BARU dari pengguna ini
+      // (di batch yang sama) dengan sel & jenis yang sama.
       function validCell(d) {
-        return d.keys().hasOnly(['cell', 'kind', 'reports', 'lastReportAt'])
-          && d.keys().hasAll(['cell', 'kind', 'reports', 'lastReportAt'])
+        return d.keys().hasOnly(['cell', 'kind', 'reports', 'lastReportAt', 'lastSuspectKey'])
+          && d.keys().hasAll(['cell', 'kind', 'reports', 'lastReportAt', 'lastSuspectKey'])
           && d.cell is string
           && d.cell.size() <= 20
           && validKind(d.kind)
+          && validKey(d.lastSuspectKey)
           && cellId == d.cell + '_' + d.kind
-          && d.lastReportAt == request.time;
+          && d.lastReportAt == request.time
+          && !exists(reportPath(d.lastSuspectKey))
+          && existsAfter(reportPath(d.lastSuspectKey))
+          && getAfter(reportPath(d.lastSuspectKey)).data.h3Location == d.cell
+          && getAfter(reportPath(d.lastSuspectKey)).data.threatType == d.kind;
       }
     }
 
