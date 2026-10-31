@@ -6,10 +6,12 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Haptic fallback saat ponsel mode Getar/Silent -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Opsional: pesan dari kontak tersimpan tidak dianalisis -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <application
         android:label="RONDA"
-        android:name="${applicationName}"
+        android:name=".RondaApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
@@ -33,6 +35,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Pembaca notifikasi pesan masuk. Pengguna mengaktifkannya manual di
+             Pengaturan > Akses notifikasi. -->
+        <service
+            android:name=".RondaNotificationListener"
+            android:exported="true"
+            android:label="RONDA"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

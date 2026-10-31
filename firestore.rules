@@ -1,0 +1,121 @@
+rules_version = '2';
+
+// RONDA — Firestore Security Rules (paket Spark, tanpa Cloud Functions).
+//
+// Karena tidak ada backend yang menghitung agregat, ATURAN INI yang menjaga
+// integritas data:
+//   * user_reports : satu laporan per pengguna per nomor (id = uid_suspectKey),
+//                    hanya bisa dibuat, tidak bisa dibaca/diubah/dihapus klien.
+//   * spam_summaries: agregat per nomor. Hanya boleh naik tepat +1 dan HANYA
+//                    bersamaan dengan pembuatan laporan pengguna di batch yang
+//                    sama (existsAfter) yang belum pernah ada (exists).
+//   * threat_cells : agregat per sel H3 + jenis ancaman, naik +1 per tulis.
+//
+// Batas yang diketahui: pengguna anonim bisa membuat banyak akun anonim.
+// Aktifkan Firebase App Check (Play Integrity) sebelum rilis publik.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validKind(k) {
+      return k in ['APK_SCAM', 'FINANCIAL_PHISHING', 'IMPERSONATION', 'SUSPICIOUS_LINK'];
+    }
+
+    function validPlatform(p) {
+      return p in ['sms', 'whatsapp', 'telegram', 'line', 'messenger', 'instagram'];
+    }
+
+    function validKey(k) {
+      return k is string && k.size() >= 3 && k.size() <= 64 && !k.matches('.*/.*');
+    }
+
+    function reportPath(suspectKey) {
+      return /databases/$(database)/documents/user_reports/$(request.auth.uid + '_' + suspectKey);
+    }
+
+    // ── Laporan pengguna: create-only, tidak bisa dibaca klien ───────────────
+    match /user_reports/{reportId} {
+      allow read, update, delete: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'suspectKey', 'platform', 'threatType', 'description', 'h3Location', 'createdAt'])
+        && request.resource.data.keys().hasAll(
+             ['uid', 'suspectKey', 'platform', 'threatType', 'description', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && validKey(request.resource.data.suspectKey)
+        && reportId == request.auth.uid + '_' + request.resource.data.suspectKey
+        && validPlatform(request.resource.data.platform)
+        && validKind(request.resource.data.threatType)
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 280
+        && (!('h3Location' in request.resource.data)
+            || request.resource.data.h3Location == null
+            || (request.resource.data.h3Location is string
+                && request.resource.data.h3Location.size() <= 20))
+        && request.resource.data.createdAt == request.time
+        // Agregat nomor itu harus ikut ditulis di batch yang sama.
+        && existsAfter(/databases/$(database)/documents/spam_summaries/$(request.resource.data.suspectKey));
+    }
+
+    // ── Ringkasan nomor: dibaca semua pengguna, naik +1 per laporan unik ────
+    match /spam_summaries/{suspectKey} {
+      allow read: if signedIn();
+      allow delete: if false;
+
+      allow create: if signedIn()
+        && validKey(suspectKey)
+        && validSummary(request.resource.data)
+        && request.resource.data.reportCount == 1
+        && !exists(reportPath(suspectKey))
+        && existsAfter(reportPath(suspectKey));
+
+      allow update: if signedIn()
+        && validSummary(request.resource.data)
+        && request.resource.data.reportCount == resource.data.reportCount + 1
+        && !exists(reportPath(suspectKey))
+        && existsAfter(reportPath(suspectKey));
+
+      function validSummary(d) {
+        return d.keys().hasOnly(['reportCount', 'riskLevel', 'aiSummary', 'threatType', 'lastUpdated'])
+          && d.keys().hasAll(['reportCount', 'riskLevel', 'aiSummary', 'threatType', 'lastUpdated'])
+          && d.riskLevel == 'HIGH'
+          && d.aiSummary is string
+          && d.aiSummary.size() <= 280
+          && validKind(d.threatType)
+          && d.lastUpdated == request.time;
+      }
+    }
+
+    // ── Sebaran ancaman untuk peta panas ─────────────────────────────────────
+    match /threat_cells/{cellId} {
+      allow read: if signedIn();
+      allow delete: if false;
+
+      allow create: if signedIn()
+        && validCell(request.resource.data)
+        && request.resource.data.reports == 1;
+
+      allow update: if signedIn()
+        && validCell(request.resource.data)
+        && request.resource.data.reports == resource.data.reports + 1;
+
+      function validCell(d) {
+        return d.keys().hasOnly(['cell', 'kind', 'reports', 'lastReportAt'])
+          && d.keys().hasAll(['cell', 'kind', 'reports', 'lastReportAt'])
+          && d.cell is string
+          && d.cell.size() <= 20
+          && validKind(d.kind)
+          && cellId == d.cell + '_' + d.kind
+          && d.lastReportAt == request.time;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

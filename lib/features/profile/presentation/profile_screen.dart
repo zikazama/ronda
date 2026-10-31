@@ -1,58 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cloud/cloud_gateway.dart';
+import '../../../core/detection/threat_list_store.dart';
 import '../../../core/platform/native_bridge.dart';
+import '../../../core/platform/protection_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/section_title.dart';
+import '../application/reputation.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen>
-    with WidgetsBindingObserver {
-  bool _notificationAccess = false;
-  bool _overlay = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  /// Segarkan status izin saat pengguna kembali dari pengaturan sistem.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
-  }
-
-  Future<void> _refresh() async {
-    final bridge = NativeBridge.instance;
-    final results = await Future.wait([
-      bridge.isNotificationAccessGranted(),
-      bridge.isOverlayGranted(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _notificationAccess = results[0];
-      _overlay = results[1];
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final bridge = NativeBridge.instance;
+    final status = ref.watch(protectionStatusProvider).value;
+    final rep = ref.watch(reputationProvider);
+    final cloudConfigured = ref.watch(cloudGatewayProvider).isConfigured;
+    final store = ref.watch(threatListStoreProvider);
+
+    final next = rep.next;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
@@ -85,38 +55,49 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ),
                     const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pahlawan Siber',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pahlawan Siber',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Level 2 • Penjaga Lingkungan',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white70,
+                          Text(
+                            'Level ${rep.levelIndex + 1} • ${rep.level.name}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white70,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 18),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(99),
-                  child: const LinearProgressIndicator(
-                    value: 0.62,
+                  child: LinearProgressIndicator(
+                    value: rep.progress,
                     minHeight: 8,
                     backgroundColor: Colors.white24,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                    valueColor: const AlwaysStoppedAnimation(Colors.white),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '620 / 1000 poin reputasi',
+                  next == null
+                      ? '${rep.points} poin • level tertinggi'
+                      : '${rep.points} / ${next.minPoints} poin menuju ${next.name}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${rep.reports} laporan terkirim',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white70,
                   ),
@@ -136,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   icon: Icons.notifications_active_outlined,
                   title: 'Akses Notifikasi',
                   subtitle: 'Membaca notifikasi SMS & aplikasi pesan',
-                  granted: _notificationAccess,
+                  granted: status?.notificationAccess ?? false,
                   onTap: bridge.openNotificationAccessSettings,
                 ),
                 const Divider(),
@@ -144,8 +125,61 @@ class _ProfileScreenState extends State<ProfileScreen>
                   icon: Icons.layers_outlined,
                   title: 'Tampil di Atas Aplikasi Lain',
                   subtitle: 'Peringatan overlay saat ancaman terdeteksi',
-                  granted: _overlay,
+                  granted: status?.overlay ?? false,
                   onTap: bridge.openOverlaySettings,
+                ),
+                const Divider(),
+                _PermissionTile(
+                  icon: Icons.contacts_outlined,
+                  title: 'Kontak (opsional)',
+                  subtitle:
+                      'Pesan dari kontak tersimpan dilewati, tidak dianalisis',
+                  granted: status?.contacts ?? false,
+                  onTap: () async {
+                    await bridge.requestContacts();
+                    ref.read(protectionStatusProvider.notifier).refresh();
+                  },
+                ),
+              ],
+            ),
+          ),
+          if (status != null && !status.supported) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Pemantauan notifikasi hanya tersedia di Android.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+          const SizedBox(height: 24),
+
+          const SectionTitle('Sistem'),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              children: [
+                _InfoRow(
+                  icon: cloudConfigured
+                      ? Icons.cloud_done_outlined
+                      : Icons.cloud_off_outlined,
+                  label: 'Basis data komunitas',
+                  value: cloudConfigured ? 'Firebase aktif' : 'Mode lokal',
+                  ok: cloudConfigured,
+                ),
+                const Divider(height: 24),
+                _InfoRow(
+                  icon: Icons.sync_rounded,
+                  label: 'Daftar penipu luring',
+                  value: store.lastSyncedAt == null
+                      ? 'Belum disinkronkan'
+                      : 'Disinkronkan',
+                  ok: store.lastSyncedAt != null,
+                ),
+                const Divider(height: 24),
+                _InfoRow(
+                  icon: Icons.block_rounded,
+                  label: 'Nomor diblokir',
+                  value: '${store.blocklist.length}',
+                  ok: true,
                 ),
               ],
             ),
@@ -157,13 +191,47 @@ class _ProfileScreenState extends State<ProfileScreen>
           AppCard(
             child: Text(
               'RONDA dirancang dengan prinsip Privacy by Design sesuai UU PDP. '
-              'Pesan dari kontak tersimpan diabaikan, dan pesan pribadi tidak '
-              'pernah disimpan di server.',
+              'Pesan dari kontak tersimpan diabaikan, isi pesan tidak pernah '
+              'disimpan, dan teks yang dianalisis AI disamarkan dari nomor '
+              'serta data pribadi.',
               style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.ok,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool ok;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: ok ? AppColors.safe : AppColors.textMuted),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+        Text(
+          value,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ],
     );
   }
 }

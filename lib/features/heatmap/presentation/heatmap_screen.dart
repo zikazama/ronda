@@ -151,7 +151,29 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
                         },
                       ),
                     ),
-                    const Positioned(top: 60, left: 12, child: _Legend()),
+                    Positioned(
+                      top: 60,
+                      left: 12,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _Legend(),
+                          if (ref.watch(isDemoDataProvider)) ...[
+                            const SizedBox(height: 6),
+                            const _Notice(
+                              icon: Icons.science_outlined,
+                              text: 'Data contoh (Firebase belum aktif)',
+                            ),
+                          ] else if (allZones.isEmpty) ...[
+                            const SizedBox(height: 6),
+                            const _Notice(
+                              icon: Icons.verified_user_outlined,
+                              text: 'Belum ada laporan di wilayah ini',
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                     // Kontrol peta
                     Positioned(
                       top: 60,
@@ -315,6 +337,36 @@ class _Legend extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text('Tinggi', style: theme),
+        ],
+      ),
+    );
+  }
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.warningSoft.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.warning),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.textPrimary),
+          ),
         ],
       ),
     );

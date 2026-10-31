@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../../core/detection/detection_providers.dart';
+import '../../../core/detection/number_utils.dart';
+import '../../../core/detection/threat_list_store.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/risk_badge.dart';
 import '../../../core/widgets/section_title.dart';
+import '../../report/application/report_service.dart';
 import '../../scan/application/scan_providers.dart';
 import '../../scan/domain/detection_layer.dart';
 import '../../scan/domain/scan_result.dart';
@@ -37,14 +42,46 @@ class AnalysisScreen extends ConsumerWidget {
   }
 }
 
-class _Content extends StatelessWidget {
+class _Content extends ConsumerStatefulWidget {
   const _Content({required this.scan});
 
   final ScanResult scan;
 
   @override
+  ConsumerState<_Content> createState() => _ContentState();
+}
+
+class _ContentState extends ConsumerState<_Content> {
+  bool _busy = false;
+
+  ScanResult get scan => widget.scan;
+
+  Future<void> _block() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final outcome = await ref.read(reportServiceProvider).report(scan);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(switch (outcome) {
+          ReportOutcome.reported =>
+            'Nomor ditandai & dilaporkan ke komunitas. +${AppConstants.pointsPerReport} poin',
+          ReportOutcome.markedLocally =>
+            'Nomor ditandai di perangkat. Laporan dikirim saat online. +${AppConstants.pointsPerReport} poin',
+          ReportOutcome.alreadyReported =>
+            'Nomor ini sudah ditandai sebelumnya.',
+        }),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final alreadyBlocked = ref
+        .watch(threatListStoreProvider)
+        .isBlocked(senderKey(scan.sender));
     final risk = scan.riskLevel;
     final entities = scan.entities;
 
@@ -108,9 +145,17 @@ class _Content extends StatelessWidget {
                     ),
                     const Divider(height: 24),
                     _InfoRow(
-                      label: 'Keyakinan AI',
+                      label: 'Keyakinan',
                       value: '${(scan.confidenceScore * 100).round()}%',
                     ),
+                    if (scan.decidedByLayer > 0) ...[
+                      const Divider(height: 24),
+                      _InfoRow(
+                        label: 'Diputuskan oleh',
+                        value:
+                            'Lapis ${scan.decidedByLayer} • ${scan.latencyMs} ms',
+                      ),
+                    ],
                     if (entities.fileExtension != null) ...[
                       const Divider(height: 24),
                       _InfoRow(
@@ -144,6 +189,7 @@ class _Content extends StatelessWidget {
                       _LayerStep(
                         layer: layer,
                         isLast: layer == DetectionLayer.pipeline.last,
+                        isDecisive: layer.order == scan.decidedByLayer,
                       ),
                   ],
                 ),
@@ -164,12 +210,18 @@ class _Content extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.danger,
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('${scan.sender} diblokir')),
-                      );
-                    },
-                    child: const Text('Blokir Nomor'),
+                    onPressed: (_busy || alreadyBlocked) ? null : _block,
+                    child: _busy
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            alreadyBlocked ? 'Sudah Diblokir' : 'Blokir Nomor',
+                          ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -221,10 +273,17 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _LayerStep extends StatelessWidget {
-  const _LayerStep({required this.layer, required this.isLast});
+  const _LayerStep({
+    required this.layer,
+    required this.isLast,
+    required this.isDecisive,
+  });
 
   final DetectionLayer layer;
   final bool isLast;
+
+  /// Lapis yang memutuskan hasil pemindaian ini.
+  final bool isDecisive;
 
   @override
   Widget build(BuildContext context) {
@@ -239,8 +298,8 @@ class _LayerStep extends StatelessWidget {
                 width: 28,
                 height: 28,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
+                decoration: BoxDecoration(
+                  color: isDecisive ? AppColors.danger : AppColors.primary,
                   shape: BoxShape.circle,
                 ),
                 child: Text(

@@ -15,6 +15,30 @@ class LocationException implements Exception {
 class LocationService {
   const LocationService();
 
+  /// Lokasi kasar HANYA bila izin sudah diberikan sebelumnya. Tidak memunculkan
+  /// dialog izin, aman dipanggil dari jalur latar belakang. `null` bila tak ada.
+  Future<LatLng?> currentIfPermitted() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission != LocationPermission.always &&
+          permission != LocationPermission.whileInUse) {
+        return null;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      final pos =
+          await Geolocator.getLastKnownPosition() ??
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.low,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+      return LatLng(pos.latitude, pos.longitude);
+    } on Object {
+      return null;
+    }
+  }
+
   Future<LatLng> current() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const LocationException('Layanan lokasi nonaktif. Aktifkan GPS.');
