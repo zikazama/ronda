@@ -235,12 +235,25 @@ class ProfileScreen extends ConsumerWidget {
           const SectionTitle('Privasi'),
           const SizedBox(height: 12),
           AppCard(
-            child: Text(
-              'RONDA dirancang dengan prinsip Privacy by Design sesuai UU PDP. '
-              'Pesan dari kontak tersimpan diabaikan, isi pesan tidak pernah '
-              'disimpan, dan teks yang dianalisis AI disamarkan dari nomor '
-              'serta data pribadi.',
-              style: theme.textTheme.bodyMedium,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'RONDA dirancang dengan prinsip Privacy by Design sesuai UU PDP. '
+                  'Pesan dari kontak tersimpan diabaikan, isi pesan tidak pernah '
+                  'disimpan, dan teks yang dianalisis AI disamarkan dari nomor '
+                  'serta data pribadi.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 10),
+                Text('Kebijakan privasi lengkap:', style: theme.textTheme.bodySmall),
+                SelectableText(
+                  'https://ronda-kch-2026.web.app/privacy',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

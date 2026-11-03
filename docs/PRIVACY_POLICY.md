@@ -1,6 +1,6 @@
 # Kebijakan Privasi RONDA
 
-*Terakhir diperbarui: 3 November 2026. Draf — tinjau ulang dan isi kontak sebelum dipublikasikan.*
+*Terakhir diperbarui: 3 November 2026.*
 
 RONDA (Radar & Overlay Notifikasi Deteksi Ancaman) membantu pengguna Android mengenali
 penipuan rekayasa sosial, phishing, dan file APK berbahaya pada pesan masuk.
@@ -24,6 +24,8 @@ penipuan rekayasa sosial, phishing, dan file APK berbahaya pada pesan masuk.
 3. **Pencarian reputasi nomor** — nomor pengirim dicari pada basis data komunitas untuk
    mengetahui apakah sudah dilaporkan pengguna lain.
 
+Selama masa uji coba, sebagian data pada peta ancaman adalah **data contoh (sintetis)**, bukan laporan pengguna nyata.
+
 Seluruh penyimpanan memakai Google Firebase (Firestore, Authentication anonim, App Check).
 Anda tidak perlu membuat akun; identitas Anda hanya ID anonim acak.
 
@@ -42,4 +44,4 @@ Anda tidak perlu membuat akun; identitas Anda hanya ID anonim acak.
 
 ## Kontak
 Pertanyaan atau permintaan terkait data pribadi (UU No. 27 Tahun 2022 tentang Pelindungan Data
-Pribadi): **[isi alamat email kontak]**
+Pribadi): **fauzi.fadman@gmail.com**

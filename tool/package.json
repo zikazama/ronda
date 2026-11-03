@@ -1,0 +1,8 @@
+{
+  "name": "ronda-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "h3-js": "^4.1.0"
+  }
+}

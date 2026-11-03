@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kebijakan Privasi RONDA</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#5b6570; --line:#e3e7ec; --accent:#1f5eff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12161b; --fg:#e8ecf1; --muted:#9aa5b1; --line:#2a313a; --accent:#7aa2ff; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.7rem; margin:0 0 4px; }
+  h2 { font-size:1.15rem; margin:32px 0 8px; }
+  .meta { color:var(--muted); font-size:.9rem; margin:0 0 24px; }
+  table { width:100%; border-collapse:collapse; font-size:.93rem; display:block; overflow-x:auto; }
+  th, td { text-align:left; vertical-align:top; padding:8px 10px; border:1px solid var(--line); }
+  th { background:color-mix(in srgb, var(--line) 50%, transparent); }
+  a { color:var(--accent); }
+  li { margin:4px 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>Kebijakan Privasi RONDA</h1>
+<p class="meta">Terakhir diperbarui: 3 November 2026</p>
+
+<p>RONDA (Radar &amp; Overlay Notifikasi Deteksi Ancaman) membantu pengguna Android mengenali
+penipuan rekayasa sosial, phishing, dan file APK berbahaya pada pesan masuk.</p>
+
+<h2>Data yang diproses di perangkat Anda</h2>
+<table>
+<tr><th>Data</th><th>Tujuan</th><th>Disimpan?</th></tr>
+<tr><td>Teks notifikasi SMS, WhatsApp, Telegram, dan aplikasi pesan lain (lewat izin Akses Notifikasi)</td>
+    <td>Mendeteksi pesan penipuan</td>
+    <td><strong>Tidak.</strong> Isi pesan tidak disimpan. Riwayat hanya berisi metadata dan ringkasan hasil analisis.</td></tr>
+<tr><td>Pencocokan pengirim dengan Kontak (izin opsional)</td>
+    <td>Melewati pesan dari kontak tersimpan</td>
+    <td><strong>Tidak.</strong> Pencocokan dilakukan di perangkat; daftar kontak tidak dikirim ke mana pun.</td></tr>
+<tr><td>Lokasi kasar (izin opsional)</td>
+    <td>Menentukan sel wilayah untuk peta ancaman</td>
+    <td>Hanya sel wilayah H3 (±0,7 km²) yang dikirim, bukan koordinat.</td></tr>
+</table>
+
+<h2>Data yang dikirim ke server</h2>
+<ol>
+<li><strong>Analisis AI (Gemini, lewat Firebase AI Logic)</strong> — hanya untuk pesan yang tidak bisa dipastikan
+oleh aturan lokal. Sebelum dikirim, nomor telepon, email, dan deret angka panjang diganti
+<code>[NOMOR]</code>, <code>[EMAIL]</code>, <code>[ANGKA]</code>, dan teks dipotong maksimal 600 karakter.</li>
+<li><strong>Laporan komunitas</strong> — saat Anda menekan "Blokir Nomor": nomor pengirim yang dilaporkan,
+jenis ancaman, platform, ringkasan singkat, sel wilayah H3 (jika izin lokasi diberikan),
+dan ID pengguna anonim.</li>
+<li><strong>Pencarian reputasi nomor</strong> — nomor pengirim dicari pada basis data komunitas untuk
+mengetahui apakah sudah dilaporkan pengguna lain.</li>
+</ol>
+<p>Selama masa uji coba, sebagian data pada peta ancaman adalah <strong>data contoh (sintetis)</strong>,
+bukan laporan pengguna nyata.</p>
+<p>Seluruh penyimpanan memakai Google Firebase (Firestore, Authentication anonim, App Check).
+Anda tidak perlu membuat akun; identitas Anda hanya ID anonim acak.</p>
+
+<h2>Yang tidak kami lakukan</h2>
+<ul>
+<li>Tidak menjual atau membagikan data untuk iklan.</li>
+<li>Tidak menyimpan isi pesan Anda.</li>
+<li>Tidak membaca pesan dari kontak tersimpan.</li>
+<li>Tidak mengumpulkan nama, email, atau nomor telepon Anda sendiri.</li>
+</ul>
+
+<h2>Hak dan kontrol Anda</h2>
+<ul>
+<li>Cabut izin kapan saja di Pengaturan Android (Akses Notifikasi, Kontak, Lokasi, Tampil di
+Atas Aplikasi Lain). Aplikasi tetap terbuka, hanya perlindungan yang berhenti.</li>
+<li>Menghapus data aplikasi menghapus riwayat dan daftar blokir lokal serta ID anonim Anda.</li>
+<li>Laporan komunitas bersifat agregat dan tidak dapat dibaca ulang oleh klien; untuk permintaan
+penghapusan laporan, hubungi kontak di bawah.</li>
+</ul>
+
+<h2>Kontak</h2>
+<p>Pertanyaan atau permintaan terkait data pribadi (UU No. 27 Tahun 2022 tentang Pelindungan Data
+Pribadi): <a href="mailto:fauzi.fadman@gmail.com">fauzi.fadman@gmail.com</a></p>
+</main>
+</body>
+</html>

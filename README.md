@@ -90,6 +90,11 @@ Keystore rilis: `android/key.properties` (di-gitignore) menunjuk ke file `.jks` 
 debug. **Cadangkan file `.jks` dan kata sandinya** — hilang berarti tidak bisa merilis pembaruan
 dengan identitas yang sama. Daftarkan SHA-256-nya di Firebase bila memakai App Check Play Integrity.
 
+Data peta awal (sintetis, 42 sel H3 di Jakarta): `cd tool && npm install && node seed_threat_cells.mjs`
+(`--dry-run` untuk pratinjau, `--remove` untuk menghapus). Memakai akun gcloud `fauzi.fadman@gmail.com`.
+Kebijakan privasi publik: `https://ronda-kch-2026.web.app/privacy` (sumber `hosting/`, deploy dengan
+`firebase deploy --only hosting`).
+
 Dokumen pendukung: `docs/DEVICE_TEST_CHECKLIST.md` (uji HP & instal manual) dan
 `docs/PRIVACY_POLICY.md` (draf kebijakan privasi untuk Play Store).
 
