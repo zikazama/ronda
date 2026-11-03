@@ -218,6 +218,58 @@ void main() {
     },
   );
 
+  group('AI tidak tersedia (Firebase belum terhubung)', () {
+    // Contoh penipuan umum yang skor aturannya ada di zona abu-abu.
+    const strongScams = {
+      'hadiah+link':
+          'Selamat anda memenangkan hadiah 50 juta! Klaim di bit.ly/hadiah-bca',
+      'penyamaran keluarga':
+          'Mama butuh transfer uang sekarang juga, nomor baru ya. rek BCA 1234567890',
+      'paket+link':
+          'Paket anda gagal dikirim, mohon konfirmasi alamat di s.id/paketku',
+    };
+
+    for (final e in strongScams.entries) {
+      test('${e.key}: tetap memunculkan peringatan (HIGH + overlay)', () async {
+        final (pipeline, _, _, _) = await _build(analyzer: _FakeAnalyzer(null));
+
+        final r = await pipeline.scan(_msg(e.value));
+
+        expect(r.riskLevel, RiskLevel.high);
+        expect(r.showsOverlay, isTrue);
+        expect(r.aiSummary, contains('analisis AI tidak tersedia'));
+      });
+    }
+
+    test('penipuan yang disamarkan (leetspeak) juga tertangkap', () async {
+      final (pipeline, _, _, _) = await _build(analyzer: _FakeAnalyzer(null));
+
+      final r = await pipeline.scan(
+        _msg('S3L4M4T anda m3n4ng h a d i a h 50 juta! Klaim di bit.ly/hadiah-bca'),
+      );
+
+      expect(r.riskLevel, RiskLevel.high);
+    });
+
+    test('indikasi ringan (pinjol) tidak lagi diabaikan: minimal MEDIUM', () async {
+      final (pipeline, _, _, _) = await _build(analyzer: _FakeAnalyzer(null));
+
+      final r = await pipeline.scan(
+        _msg('Pinjaman online dana cair 5 menit tanpa jaminan, klik link ini'),
+      );
+
+      expect(r.riskLevel, RiskLevel.medium);
+    });
+
+    test('pesan biasa tetap LOW', () async {
+      final (pipeline, _, _, _) = await _build(analyzer: _FakeAnalyzer(null));
+
+      final r = await pipeline.scan(_msg('Besok rapat jam 9 ya, bawa laptop'));
+
+      expect(r.riskLevel, RiskLevel.low);
+    });
+  });
+
   test('Isi pesan tidak muncul pada hasil yang disimpan', () async {
     final (pipeline, _, _, _) = await _build();
     final r = await pipeline.scan(_msg('rahasia pribadi digital.apk'));

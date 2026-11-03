@@ -21,11 +21,22 @@ class HeatmapData {
 /// tidak tersedia, jatuh ke data contoh yang ditandai `isDemo`.
 final heatmapDataProvider = StreamProvider<HeatmapData>((ref) async* {
   final geo = ref.watch(geoIndexProvider);
-  final cloud = await ref.watch(cloudGatewayProvider).services();
+  final gateway = ref.watch(cloudGatewayProvider);
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
 
+  var cloud = await gateway.services();
   if (cloud == null) {
     yield HeatmapData(MockHeatmapData.zones(geo), isDemo: true);
-    return;
+    // Koneksi pertama bisa gagal sementara (jaringan belum siap saat proses
+    // dimulai). Jangan menetap di data contoh: coba lagi sampai terhubung.
+    // Bila Firebase memang belum dikonfigurasi, tidak ada yang perlu diulang.
+    while (cloud == null && gateway.isConfigured && !disposed) {
+      await Future<void>.delayed(const Duration(seconds: 20));
+      if (disposed) return;
+      cloud = await gateway.services();
+    }
+    if (cloud == null) return;
   }
 
   final query = cloud.firestore

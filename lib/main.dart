@@ -8,9 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/detection/detection_service.dart';
 import 'core/storage/prefs.dart';
+import 'core/telemetry/telemetry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Paling awal agar crash saat start pun terlaporkan.
+  await Telemetry.init();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

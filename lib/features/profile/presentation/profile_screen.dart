@@ -18,7 +18,8 @@ class ProfileScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final status = ref.watch(protectionStatusProvider).value;
     final rep = ref.watch(reputationProvider);
-    final cloudConfigured = ref.watch(cloudGatewayProvider).isConfigured;
+    final gateway = ref.watch(cloudGatewayProvider);
+    final link = ref.watch(cloudLinkProvider).value;
     final store = ref.watch(threatListStoreProvider);
     final steps = permissionSteps(status);
 
@@ -145,13 +146,30 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               children: [
                 _InfoRow(
-                  icon: cloudConfigured
+                  icon: link == CloudLink.connected
                       ? Icons.cloud_done_outlined
                       : Icons.cloud_off_outlined,
                   label: 'Basis data komunitas',
-                  value: cloudConfigured ? 'Firebase aktif' : 'Mode lokal',
-                  ok: cloudConfigured,
+                  value: switch (link) {
+                    null => 'Memeriksa…',
+                    CloudLink.connected => 'Terhubung',
+                    CloudLink.notConfigured => 'Mode lokal',
+                    CloudLink.disconnected => 'Belum terhubung',
+                  },
+                  ok: link == CloudLink.connected,
                 ),
+                if (link == CloudLink.disconnected) ...[
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      gateway.lastError == null
+                          ? 'Mencoba lagi otomatis. Pastikan HP terhubung internet.'
+                          : 'Mencoba lagi otomatis. Penyebab: ${gateway.lastError}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
                 const Divider(height: 24),
                 _InfoRow(
                   icon: Icons.sync_rounded,

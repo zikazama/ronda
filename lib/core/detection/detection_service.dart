@@ -7,6 +7,7 @@ import '../../features/scan/application/scan_providers.dart';
 import '../../features/scan/domain/scan_result.dart';
 import '../../features/scan/domain/threat_labels.dart';
 import '../constants/app_constants.dart';
+import '../telemetry/telemetry.dart';
 import '../platform/native_bridge.dart';
 import 'detection_providers.dart';
 import 'spam_directory.dart';
@@ -69,21 +70,35 @@ class DetectionService {
     }
 
     await _ref.read(scannedCountProvider.notifier).increment();
+    // Hanya metadata: tanpa isi pesan dan tanpa pengirim.
+    Telemetry.log(
+      'scan app=${n.packageName} lapis=${result.decidedByLayer} '
+      'risiko=${result.riskLevel.name} ancaman=${result.threatType} '
+      'yakin=${result.confidenceScore} ms=${result.latencyMs}',
+    );
     if (result.riskLevel == RiskLevel.low) return result; // tidak disimpan
 
     await _ref.read(scanHistoryProvider.notifier).add(result);
 
-    if (result.showsOverlay) {
-      await _bridge.showOverlay(
-        scanId: result.scanId,
-        sender: result.sender,
-        platformLabel: result.platform.label,
-        title: _titleFor(result),
-        summary: result.aiSummary,
-        confidencePercent: (result.confidenceScore * 100).round(),
-        advice: result.advice.first,
-        playAlarm: true,
-      );
+    // HIGH: overlay merah + alarm. MEDIUM: overlay kuning tanpa alarm.
+    // (Sebelumnya MEDIUM hanya masuk riwayat tanpa peringatan apa pun.)
+    final high = result.riskLevel == RiskLevel.high;
+    final shown = await _bridge.showOverlay(
+      scanId: result.scanId,
+      sender: result.sender,
+      platformLabel: result.platform.label,
+      title: _titleFor(result),
+      summary: result.aiSummary,
+      confidencePercent: (result.confidenceScore * 100).round(),
+      advice: result.advice.first,
+      playAlarm: high,
+      level: result.riskLevel.name,
+    );
+    Telemetry.log('overlay level=${result.riskLevel.name} tampil=$shown');
+    if (shown) {
+      Telemetry.key('overlay_tampil', true);
+    } else {
+      Telemetry.overlayFailed();
     }
     return result;
   }

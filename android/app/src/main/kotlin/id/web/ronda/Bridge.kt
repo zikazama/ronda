@@ -115,6 +115,7 @@ object Bridge {
             summary = call.argument<String>("summary") ?: "",
             confidence = call.argument<Int>("confidence") ?: 0,
             advice = call.argument<String>("advice") ?: "",
+            level = call.argument<String>("level") ?: "high",
         )
 
         OverlayManager.show(appContext, payload) { action ->

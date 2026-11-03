@@ -1,3 +1,4 @@
+import 'text_normalizer.dart';
 import '../../features/scan/domain/scan_result.dart';
 
 /// Kode jenis ancaman (sesuai field `threat_type` pada kontrak API).
@@ -51,6 +52,13 @@ class RuleEngine {
 
   /// Skor di bawah ini dianggap aman tanpa perlu AI.
   static const lowThreshold = 0.30;
+
+  /// Saat AI tidak tersedia (luring / Firebase belum terhubung), skor abu-abu
+  /// tidak bisa diputuskan AI. Lebih baik memperingatkan daripada diam:
+  /// >= [offlineHighThreshold] dianggap berbahaya, >= [offlineMediumThreshold]
+  /// dianggap mencurigakan.
+  static const offlineHighThreshold = 0.65;
+  static const offlineMediumThreshold = 0.35;
 
   static final _apk = RegExp(r'\.x?apks?\b|\bapk\b', caseSensitive: false);
   static final _url = RegExp(
@@ -200,13 +208,17 @@ class RuleEngine {
   RuleResult analyze(String body) {
     if (body.trim().isEmpty) return RuleResult.clean;
 
+    // Kata kunci dicocokkan pada teks yang sudah dinormalkan (anti-penyamaran);
+    // URL & rekening tetap dibaca dari teks asli.
+    final text = normalizeForMatching(body);
+
     final signals = <_Signal>[];
     String? fileExtension;
     String? bankAccount;
     String? suspiciousUrl;
 
     // File berbahaya (.apk)
-    final apk = _apk.firstMatch(body);
+    final apk = _apk.firstMatch(body) ?? _apk.firstMatch(text);
     if (apk != null) {
       fileExtension = '.apk';
       signals.add(const _Signal('file APK', 0.9, ThreatCodes.apkScam));
@@ -260,7 +272,7 @@ class RuleEngine {
 
     // Kata kunci manipulasi
     for (final entry in _keywordSignals.entries) {
-      if (entry.key.hasMatch(body)) signals.add(entry.value);
+      if (entry.key.hasMatch(text)) signals.add(entry.value);
     }
 
     if (signals.isEmpty) return RuleResult.clean;

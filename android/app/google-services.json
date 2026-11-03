@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "8587085159",
+    "project_id": "ronda-kch-2026",
+    "storage_bucket": "ronda-kch-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:8587085159:android:0b9c25810ef31206979bc2",
+        "android_client_info": {
+          "package_name": "id.web.ronda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6ZtsVfI9LJmPCGELcYWbilMgA85a5AJU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

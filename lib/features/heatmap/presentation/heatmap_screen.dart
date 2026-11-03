@@ -162,7 +162,7 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
                             const SizedBox(height: 6),
                             const _Notice(
                               icon: Icons.science_outlined,
-                              text: 'Data contoh (Firebase belum aktif)',
+                              text: 'Data contoh • belum terhubung ke server',
                             ),
                           ] else if (allZones.isEmpty) ...[
                             const SizedBox(height: 6),

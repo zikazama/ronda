@@ -23,6 +23,11 @@ penipuan rekayasa sosial, phishing, dan file APK berbahaya pada pesan masuk.
    dan ID pengguna anonim.
 3. **Pencarian reputasi nomor** — nomor pengirim dicari pada basis data komunitas untuk
    mengetahui apakah sudah dilaporkan pengguna lain.
+4. **Laporan kerusakan dan diagnosis (Firebase Crashlytics)** — saat aplikasi error atau
+   peringatan gagal tampil, aplikasi mengirim jejak teknis: jenis dan versi perangkat, versi
+   Android, status izin (aktif/tidak), aplikasi sumber notifikasi (mis. com.whatsapp), tingkat
+   risiko hasil analisis, dan pesan error. **Isi pesan, nomor atau nama pengirim, dan lokasi tidak
+   pernah disertakan.** Data ini dipakai hanya untuk memperbaiki aplikasi.
 
 Selama masa uji coba, sebagian data pada peta ancaman adalah **data contoh (sintetis)**, bukan laporan pengguna nyata.
 

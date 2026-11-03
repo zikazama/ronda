@@ -184,7 +184,11 @@ class DetectionPipeline {
     }
 
     // AI tak tersedia (luring): putuskan berdasarkan skor aturan saja.
-    final risk = score >= 0.5 ? RiskLevel.medium : RiskLevel.low;
+    final risk = score >= RuleEngine.offlineHighThreshold
+        ? RiskLevel.high
+        : score >= RuleEngine.offlineMediumThreshold
+        ? RiskLevel.medium
+        : RiskLevel.low;
     return build(
       risk: risk,
       threat: risk == RiskLevel.low ? ThreatCodes.none : rule.threatCode,

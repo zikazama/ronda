@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../telemetry/telemetry.dart';
 import 'native_bridge.dart';
 
 /// Status izin yang dibutuhkan agar proteksi berjalan.
@@ -52,6 +53,10 @@ class ProtectionStatusNotifier extends AsyncNotifier<ProtectionStatus> {
       bridge.isContactsGranted(),
       bridge.isBatteryUnrestricted(),
     ]);
+    Telemetry.key('izin_notifikasi', results[0]);
+    Telemetry.key('izin_overlay', results[1]);
+    Telemetry.key('izin_kontak', results[2]);
+    Telemetry.key('bebas_baterai', results[3]);
     return ProtectionStatus(
       supported: true,
       notificationAccess: results[0],

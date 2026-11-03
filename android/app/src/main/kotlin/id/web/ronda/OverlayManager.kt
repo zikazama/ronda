@@ -24,6 +24,8 @@ data class OverlayPayload(
     val summary: String,
     val confidence: Int,
     val advice: String = "",
+    /** "high" (merah, beralarm) atau "medium" (kuning, tenang). */
+    val level: String = "high",
 )
 
 /**
@@ -36,6 +38,8 @@ data class OverlayPayload(
 object OverlayManager {
     private val RED = Color.parseColor("#D6343B")
     private val RED_SOFT = Color.parseColor("#FCE9EA")
+    private val AMBER = Color.parseColor("#B87500")
+    private val AMBER_SOFT = Color.parseColor("#FEF1D6")
     private val INK = Color.parseColor("#0D1B34")
     private val MUTED = Color.parseColor("#45546B")
     private val SOFT = Color.parseColor("#EAEEF5")
@@ -96,6 +100,10 @@ object OverlayManager {
             setColor(color)
             cornerRadius = dp(radiusDp).toFloat()
         }
+
+        val high = p.level != "medium"
+        val accent = if (high) RED else AMBER
+        val accentSoft = if (high) RED_SOFT else AMBER_SOFT
 
         val regular = font(context, 500)
         val semibold = font(context, 600)
@@ -161,13 +169,18 @@ object OverlayManager {
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(RED)
+                    setColor(accent)
                 }
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             },
             LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(10) }
         )
-        header.addView(label("Pesan berbahaya terdeteksi", 13f, RED, semibold))
+        header.addView(
+            label(
+                if (high) "Pesan berbahaya terdeteksi" else "Pesan mencurigakan",
+                13f, accent, semibold
+            )
+        )
         card.addView(header, lp())
 
         card.addView(label(p.title, 21f, INK, bold), lp(10))
@@ -184,7 +197,7 @@ object OverlayManager {
         if (p.advice.isNotBlank()) {
             card.addView(
                 label(p.advice, 14f, INK, semibold).apply {
-                    background = rounded(RED_SOFT, 12)
+                    background = rounded(accentSoft, 12)
                     setPadding(dp(14), dp(12), dp(14), dp(12))
                 },
                 lp(14)
@@ -199,13 +212,13 @@ object OverlayManager {
                 .apply { marginEnd = dp(10) }
         )
         row.addView(
-            button("Blokir & laporkan", RED, Color.WHITE, "block", "Blokir dan laporkan nomor ini"),
+            button("Blokir & laporkan", if (high) RED else INK, Color.WHITE, "block", "Blokir dan laporkan nomor ini"),
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.25f)
         )
         card.addView(row, lp(16))
 
         return FrameLayout(context).apply {
-            setBackgroundColor(Color.parseColor("#B3000000"))
+            setBackgroundColor(Color.parseColor(if (high) "#B3000000" else "#80000000"))
             isFocusable = true
             isFocusableInTouchMode = true
             setOnKeyListener { _, keyCode, event ->

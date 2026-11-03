@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../firebase_options.dart';
+import '../telemetry/telemetry.dart';
 
 /// Layanan Firebase yang siap dipakai (sudah login anonim).
 class CloudServices {
@@ -30,6 +31,9 @@ class CloudGateway {
   final Duration retryAfter;
 
   CloudServices? _services;
+
+  /// Alasan singkat kegagalan koneksi terakhir (untuk ditampilkan di Profil).
+  String? lastError;
   Future<CloudServices?>? _inFlight;
   DateTime? _lastAttempt;
 
@@ -89,19 +93,42 @@ class CloudGateway {
       final auth = FirebaseAuth.instanceFor(app: app);
       final user =
           auth.currentUser ??
-          (await auth.signInAnonymously().timeout(const Duration(seconds: 10)))
+          (await auth.signInAnonymously().timeout(const Duration(seconds: 20)))
               .user;
-      if (user == null) return null;
+      if (user == null) {
+        lastError = 'Login anonim tidak mengembalikan pengguna';
+        return null;
+      }
+      lastError = null;
+      Telemetry.key('cloud_terhubung', true);
       return _services = CloudServices(
         app: app,
         firestore: FirebaseFirestore.instanceFor(app: app),
         uid: user.uid,
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('Firebase tidak tersedia, memakai mode lokal: $e');
+      lastError = _short(e);
+      Telemetry.key('cloud_terhubung', false);
+      Telemetry.nonFatal(e, st, reason: 'gagal terhubung ke Firebase');
       return null;
     }
   }
 }
 
+String _short(Object e) {
+  final t = e.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  return t.length <= 140 ? t : '${t.substring(0, 140)}…';
+}
+
 final cloudGatewayProvider = Provider<CloudGateway>((ref) => CloudGateway());
+
+/// Keadaan sambungan ke Firebase yang sebenarnya (bukan sekadar konfigurasi).
+enum CloudLink { notConfigured, connected, disconnected }
+
+final cloudLinkProvider = FutureProvider.autoDispose<CloudLink>((ref) async {
+  final gateway = ref.watch(cloudGatewayProvider);
+  if (!gateway.isConfigured) return CloudLink.notConfigured;
+  final cloud = await gateway.servicesQuick(wait: const Duration(seconds: 4));
+  return cloud != null ? CloudLink.connected : CloudLink.disconnected;
+});
