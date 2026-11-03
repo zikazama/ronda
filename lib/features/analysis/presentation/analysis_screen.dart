@@ -7,13 +7,14 @@ import '../../../core/detection/detection_providers.dart';
 import '../../../core/detection/number_utils.dart';
 import '../../../core/detection/threat_list_store.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/risk_badge.dart';
-import '../../../core/widgets/section_title.dart';
 import '../../report/application/report_service.dart';
 import '../../scan/application/scan_providers.dart';
 import '../../scan/domain/detection_layer.dart';
 import '../../scan/domain/scan_result.dart';
+import '../../scan/domain/threat_labels.dart';
 
 class AnalysisScreen extends ConsumerWidget {
   const AnalysisScreen({super.key, required this.scanId});
@@ -29,7 +30,7 @@ class AnalysisScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Analisis AI'),
+        title: const Text('Detail pesan'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
@@ -85,113 +86,166 @@ class _ContentState extends ConsumerState<_Content> {
     final risk = scan.riskLevel;
     final entities = scan.entities;
 
+    final findings = <(String, String)>[
+      if (entities.suspiciousUrl != null)
+        ('Tautan mencurigakan', entities.suspiciousUrl!),
+      if (entities.fileExtension != null)
+        ('Jenis file', entities.fileExtension!),
+      if (entities.bankAccount != null) ('Rekening', entities.bankAccount!),
+    ];
+
     return Column(
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
             children: [
-              // Banner peringatan
+              // Vonis dalam bahasa biasa: apa ini, dari siapa, kenapa.
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: risk.softColor,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AppTheme.radius),
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(risk.icon, color: risk.color, size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'PERINGATAN: ${scan.threatType.replaceAll('_', ' ')}',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
+                    Row(
+                      children: [
+                        Icon(risk.icon, color: risk.color, size: 26),
+                        const SizedBox(width: 10),
+                        RiskBadge(risk),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      scan.threatTitle,
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${scan.platform.label} dari ${scan.sender}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(scan.aiSummary, style: theme.textTheme.bodyLarge),
+                  ],
+                ),
+              ),
+
+              if (risk != RiskLevel.low) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'Yang sebaiknya Anda lakukan',
+                  style: theme.textTheme.titleLarge,
+                ),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < scan.advice.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.check_circle_outline_rounded,
+                                size: 20,
+                                color: AppColors.primary,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            scan.aiSummary,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                scan.advice[i],
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+              ],
 
-              // Ringkasan
-              AppCard(
-                child: Column(
-                  children: [
-                    _InfoRow(label: 'Platform', value: scan.platform.label),
-                    const Divider(height: 24),
-                    _InfoRow(label: 'Pengirim', value: scan.sender),
-                    const Divider(height: 24),
-                    _InfoRow(
-                      label: 'Tingkat risiko',
-                      valueWidget: RiskBadge(risk),
-                    ),
-                    const Divider(height: 24),
-                    _InfoRow(
-                      label: 'Keyakinan',
-                      value: '${(scan.confidenceScore * 100).round()}%',
-                    ),
-                    if (scan.decidedByLayer > 0) ...[
-                      const Divider(height: 24),
-                      _InfoRow(
-                        label: 'Diputuskan oleh',
-                        value:
-                            'Lapis ${scan.decidedByLayer} • ${scan.latencyMs} ms',
-                      ),
-                    ],
-                    if (entities.fileExtension != null) ...[
-                      const Divider(height: 24),
-                      _InfoRow(
-                        label: 'Ekstensi file',
-                        value: entities.fileExtension!,
-                      ),
-                    ],
-                    if (entities.bankAccount != null) ...[
-                      const Divider(height: 24),
-                      _InfoRow(label: 'Rekening', value: entities.bankAccount!),
-                    ],
-                    if (entities.suspiciousUrl != null) ...[
-                      const Divider(height: 24),
-                      _InfoRow(
-                        label: 'URL mencurigakan',
-                        value: entities.suspiciousUrl!,
-                      ),
-                    ],
-                  ],
+              if (findings.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'Yang kami temukan di pesan',
+                  style: theme.textTheme.titleLarge,
                 ),
-              ),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < findings.length; i++) ...[
+                        if (i > 0) const Divider(height: 24),
+                        _InfoRow(
+                          label: findings[i].$1,
+                          value: findings[i].$2,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 24),
-
-              // Alur deteksi
-              const SectionTitle('Alur Deteksi'),
-              const SizedBox(height: 12),
-              AppCard(
-                child: Column(
-                  children: [
-                    for (final layer in DetectionLayer.pipeline)
-                      _LayerStep(
-                        layer: layer,
-                        isLast: layer == DetectionLayer.pipeline.last,
-                        isDecisive: layer.order == scan.decidedByLayer,
+              // Detail untuk yang ingin tahu cara kerjanya; tertutup secara bawaan.
+              Theme(
+                data: theme.copyWith(dividerColor: Colors.transparent),
+                child: AppCard(
+                  padding: EdgeInsets.zero,
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 2,
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    title: Text(
+                      'Detail teknis',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    subtitle: Text(
+                      'Keyakinan ${(scan.confidenceScore * 100).round()}% '
+                      'dan cara pesan ini dinilai',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    children: [
+                      _InfoRow(
+                        label: 'Tingkat risiko',
+                        valueWidget: RiskBadge(risk),
                       ),
-                  ],
+                      const Divider(height: 24),
+                      _InfoRow(
+                        label: 'Keyakinan',
+                        value: '${(scan.confidenceScore * 100).round()}%',
+                      ),
+                      if (scan.decidedByLayer > 0) ...[
+                        const Divider(height: 24),
+                        _InfoRow(
+                          label: 'Diputuskan oleh',
+                          value:
+                              'Lapis ${scan.decidedByLayer} • ${scan.latencyMs} ms',
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      for (final layer in DetectionLayer.pipeline)
+                        _LayerStep(
+                          layer: layer,
+                          isLast: layer == DetectionLayer.pipeline.last,
+                          isDecisive: layer.order == scan.decidedByLayer,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -228,7 +282,7 @@ class _ContentState extends ConsumerState<_Content> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => context.pop(),
-                    child: const Text('Abaikan'),
+                    child: const Text('Tutup'),
                   ),
                 ),
               ],

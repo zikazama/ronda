@@ -49,5 +49,5 @@ class ThreatZone {
 
   /// Warna dari kuning (rendah) ke merah (tinggi) berdasarkan intensitas 0..1.
   static Color colorFor(double intensity) =>
-      Color.lerp(AppColors.warning, AppColors.danger, intensity.clamp(0, 1))!;
+      Color.lerp(AppColors.warningFill, AppColors.danger, intensity.clamp(0, 1))!;
 }

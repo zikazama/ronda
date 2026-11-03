@@ -113,6 +113,7 @@ class NativeBridge {
     required String summary,
     required int confidencePercent,
     required bool playAlarm,
+    String advice = '',
   }) => _invokeBool('showOverlay', {
     'scanId': scanId,
     'sender': sender,
@@ -120,6 +121,7 @@ class NativeBridge {
     'title': title,
     'summary': summary,
     'confidence': confidencePercent,
+    'advice': advice,
     'playAlarm': playAlarm,
   });
 

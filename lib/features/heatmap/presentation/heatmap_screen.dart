@@ -331,7 +331,7 @@ class _Legend extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
               gradient: const LinearGradient(
-                colors: [AppColors.warning, AppColors.danger],
+                colors: [AppColors.warningFill, AppColors.danger],
               ),
             ),
           ),
@@ -460,7 +460,7 @@ class _SummaryCard extends StatelessWidget {
                 Text('$total Laporan', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: 2),
                 Text(
-                  '${zones.length} zona • lokasi dianonimkan (H3)',
+                  '${zones.length} zona • lokasi dianonimkan',
                   style: theme.textTheme.bodySmall,
                 ),
               ],
@@ -534,7 +534,6 @@ class _ZoneCard extends StatelessWidget {
                   'Terakhir ${timeAgo(zone.lastReportAt).toLowerCase()}',
                   style: theme.textTheme.bodyMedium,
                 ),
-                Text('H3 ${zone.cell}', style: theme.textTheme.bodySmall),
               ],
             ),
           ),

@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/scan/application/scan_providers.dart';
 import '../../features/scan/domain/scan_result.dart';
+import '../../features/scan/domain/threat_labels.dart';
 import '../constants/app_constants.dart';
 import '../platform/native_bridge.dart';
 import 'detection_providers.dart';
-import 'rule_engine.dart';
 import 'spam_directory.dart';
 import 'threat_list_store.dart';
 
@@ -81,6 +81,7 @@ class DetectionService {
         title: _titleFor(result),
         summary: result.aiSummary,
         confidencePercent: (result.confidenceScore * 100).round(),
+        advice: result.advice.first,
         playAlarm: true,
       );
     }
@@ -128,14 +129,7 @@ class DetectionService {
     return false;
   }
 
-  static String _titleFor(ScanResult r) => switch (r.threatType) {
-    ThreatCodes.apkScam => 'Modus berkas APK palsu',
-    ThreatCodes.financialPhishing => 'Phishing finansial',
-    ThreatCodes.impersonation => 'Penyamaran pihak tepercaya',
-    ThreatCodes.suspiciousLink => 'Tautan berbahaya',
-    ThreatCodes.knownScammer => 'Nomor penipu dikenal',
-    _ => 'Pesan berbahaya',
-  };
+  static String _titleFor(ScanResult r) => r.threatTitle;
 }
 
 final detectionServiceProvider = Provider<DetectionService>((ref) {

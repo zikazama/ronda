@@ -6,6 +6,7 @@ import 'package:ronda/core/cloud/cloud_gateway.dart';
 
 import 'package:ronda/app.dart';
 import 'package:ronda/core/geo/geo_index.dart';
+import 'package:ronda/core/platform/protection_status.dart';
 import 'package:ronda/core/router/app_router.dart';
 import 'package:ronda/core/storage/prefs.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,7 @@ void main() {
           cloudGatewayProvider.overrideWithValue(
             CloudGateway(options: _noCloud),
           ),
+          protectionStatusProvider.overrideWith(_NoPermissions.new),
           geoIndexProvider.overrideWithValue(FakeGeoIndex()),
         ],
         child: const RondaApp(),
@@ -39,10 +41,20 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('RONDA SIBER'), findsOneWidget);
-    expect(find.text('Aktivitas Terkini'), findsOneWidget);
-    expect(find.text('Belum ada ancaman terdeteksi'), findsOneWidget);
-    expect(find.text('Pesan dipindai'), findsOneWidget);
+    // Tanpa izin, Beranda harus jujur: belum
+    // berjaga, dengan tombol aktivasi dan panduan langkah bernomor.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Ronda belum berjaga.'), findsOneWidget);
+    expect(find.text('Aktifkan sekarang'), findsOneWidget);
+    expect(find.text('Selesaikan pengaturan'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Belum ada ancaman'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Aktivitas terkini'), findsOneWidget);
+    expect(find.text('Belum ada ancaman'), findsOneWidget);
+    expect(find.text('pesan dipindai'), findsOneWidget);
 
     await tester.tap(find.text('Peta'));
     await tester.pump(const Duration(milliseconds: 500));
@@ -78,19 +90,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.scrollUntilVisible(
-      find.text('Uji dengan pesan simulasi'),
+      find.text('Coba dengan pesan simulasi'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Uji dengan pesan simulasi'));
+    await tester.tap(find.text('Coba dengan pesan simulasi'));
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 600));
     await tester.tap(find.text('Undangan pernikahan (APK)'));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('Belum ada ancaman terdeteksi'), findsNothing);
+    expect(find.text('Belum ada ancaman'), findsNothing);
     expect(find.textContaining('+6281298765432'), findsWidgets);
   });
+}
+
+/// Android tanpa izin apa pun (plugin izin tidak tersedia di lingkungan tes).
+class _NoPermissions extends ProtectionStatusNotifier {
+  @override
+  Future<ProtectionStatus> build() async => const ProtectionStatus(
+    supported: true,
+    notificationAccess: false,
+    overlay: false,
+    contacts: false,
+  );
 }
 
 /// Tanpa Firebase: menguji jalur luring/lokal.

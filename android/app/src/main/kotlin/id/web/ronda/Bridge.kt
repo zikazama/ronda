@@ -114,6 +114,7 @@ object Bridge {
             title = call.argument<String>("title") ?: "Pesan berbahaya",
             summary = call.argument<String>("summary") ?: "",
             confidence = call.argument<Int>("confidence") ?: 0,
+            advice = call.argument<String>("advice") ?: "",
         )
 
         OverlayManager.show(appContext, payload) { action ->

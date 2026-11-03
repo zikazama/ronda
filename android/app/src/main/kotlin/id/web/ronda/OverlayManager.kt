@@ -7,9 +7,11 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -21,17 +23,22 @@ data class OverlayPayload(
     val title: String,
     val summary: String,
     val confidence: Int,
+    val advice: String = "",
 )
 
 /**
  * Overlay peringatan di atas aplikasi lain (TYPE_APPLICATION_OVERLAY).
  * Dibuat murni dengan View programatik agar tidak bergantung pada tema Activity.
+ *
+ * Kartu berada di bawah layar (terjangkau satu tangan), tombol berukuran
+ * sentuh >= 52dp, dan tombol Back sama dengan "Abaikan".
  */
 object OverlayManager {
-    private val RED = Color.parseColor("#D32F2F")
-    private val INK = Color.parseColor("#1B1F2A")
-    private val MUTED = Color.parseColor("#5B6475")
-    private val SOFT = Color.parseColor("#EEF0F4")
+    private val RED = Color.parseColor("#D6343B")
+    private val RED_SOFT = Color.parseColor("#FCE9EA")
+    private val INK = Color.parseColor("#0D1B34")
+    private val MUTED = Color.parseColor("#45546B")
+    private val SOFT = Color.parseColor("#EAEEF5")
 
     private var root: View? = null
 
@@ -60,6 +67,8 @@ object OverlayManager {
 
         wm.addView(view, params)
         root = view
+        // Agar tombol Back diterima dan TalkBack langsung membacakan peringatan.
+        view.requestFocus()
     }
 
     fun dismiss(context: Context) {
@@ -72,6 +81,15 @@ object OverlayManager {
         }
     }
 
+    /** Font yang sama dengan aplikasi (aset Flutter). Gagal => font sistem. */
+    private fun font(context: Context, weight: Int): Typeface? = try {
+        Typeface.createFromAsset(
+            context.assets, "flutter_assets/assets/fonts/PlusJakartaSans-$weight.ttf"
+        )
+    } catch (_: Exception) {
+        null
+    }
+
     private fun build(context: Context, p: OverlayPayload, onAction: (String) -> Unit): View {
         fun dp(v: Int) = (v * context.resources.displayMetrics.density).toInt()
         fun rounded(color: Int, radiusDp: Int) = GradientDrawable().apply {
@@ -79,92 +97,133 @@ object OverlayManager {
             cornerRadius = dp(radiusDp).toFloat()
         }
 
-        fun label(text: String, sizeSp: Float, color: Int, bold: Boolean = false) =
+        val regular = font(context, 500)
+        val semibold = font(context, 600)
+        val bold = font(context, 800)
+
+        fun label(text: String, sizeSp: Float, color: Int, face: Typeface? = regular) =
             TextView(context).apply {
                 this.text = text
                 textSize = sizeSp
                 setTextColor(color)
-                if (bold) setTypeface(typeface, Typeface.BOLD)
+                setLineSpacing(0f, 1.15f)
+                if (face != null) typeface = face
             }
 
-        fun button(text: String, bg: Int, fg: Int, action: String) =
+        fun lp(topDp: Int = 0) = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(topDp) }
+
+        fun button(text: String, bg: Int, fg: Int, action: String, description: String) =
             TextView(context).apply {
                 this.text = text
-                textSize = 14f
+                textSize = 15f
                 setTextColor(fg)
-                setTypeface(typeface, Typeface.BOLD)
+                typeface = bold ?: Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                background = rounded(bg, 14)
+                minHeight = dp(52)
+                background = rounded(bg, 12)
                 setPadding(dp(12), dp(14), dp(12), dp(14))
+                isClickable = true
+                isFocusable = true
+                contentDescription = description
                 setOnClickListener { onAction(action) }
+                // TalkBack membacakannya sebagai tombol.
+                accessibilityDelegate = object : View.AccessibilityDelegate() {
+                    override fun onInitializeAccessibilityNodeInfo(
+                        host: View, info: AccessibilityNodeInfo
+                    ) {
+                        super.onInitializeAccessibilityNodeInfo(host, info)
+                        info.className = "android.widget.Button"
+                    }
+                }
             }
 
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(Color.WHITE, 24)
-            setPadding(dp(22), dp(22), dp(22), dp(18))
+            background = rounded(Color.WHITE, 20)
+            setPadding(dp(20), dp(20), dp(20), dp(16))
             elevation = dp(8).toFloat()
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
         }
 
-        card.addView(label("⚠  PERINGATAN RONDA", 12f, RED, bold = true))
-        card.addView(
-            label(p.title, 19f, INK, bold = true),
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(6) }
+        // Penanda risiko: lingkaran merah + kalimat biasa (bukan huruf kapital).
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(
+            TextView(context).apply {
+                text = "!"
+                textSize = 16f
+                setTextColor(Color.WHITE)
+                typeface = bold ?: Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(RED)
+                }
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            },
+            LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(10) }
         )
+        header.addView(label("Pesan berbahaya terdeteksi", 13f, RED, semibold))
+        card.addView(header, lp())
+
+        card.addView(label(p.title, 21f, INK, bold), lp(10))
         card.addView(
             label(
-                listOf(p.platform, p.sender).filter { it.isNotBlank() }.joinToString(" • "),
-                13f, MUTED
+                listOf(p.platform, p.sender).filter { it.isNotBlank() }.joinToString(" dari "),
+                13.5f, MUTED, semibold
             ),
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(4) }
+            lp(4)
         )
         if (p.summary.isNotBlank()) {
+            card.addView(label(p.summary, 14.5f, INK), lp(12))
+        }
+        if (p.advice.isNotBlank()) {
             card.addView(
-                label(p.summary, 14f, INK),
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(12) }
+                label(p.advice, 14f, INK, semibold).apply {
+                    background = rounded(RED_SOFT, 12)
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
+                },
+                lp(14)
             )
         }
-        card.addView(
-            label("Tingkat keyakinan ${p.confidence}%", 12f, MUTED),
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(10) }
-        )
+        card.addView(label("Tingkat keyakinan ${p.confidence}%", 12f, MUTED), lp(10))
 
         val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(
-            button("Abaikan", SOFT, INK, "dismiss"),
+            button("Abaikan", SOFT, INK, "dismiss", "Abaikan peringatan"),
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { marginEnd = dp(8) }
+                .apply { marginEnd = dp(10) }
         )
         row.addView(
-            button("Blokir & Laporkan", RED, Color.WHITE, "block"),
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            button("Blokir & laporkan", RED, Color.WHITE, "block", "Blokir dan laporkan nomor ini"),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.25f)
         )
-        card.addView(
-            row,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(16) }
-        )
+        card.addView(row, lp(16))
 
         return FrameLayout(context).apply {
-            setBackgroundColor(Color.parseColor("#99000000"))
+            setBackgroundColor(Color.parseColor("#B3000000"))
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setOnKeyListener { _, keyCode, event ->
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    onAction("dismiss")
+                    true
+                } else false
+            }
             addView(
                 card,
                 FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
-                    Gravity.CENTER
+                    Gravity.BOTTOM
                 ).apply {
-                    marginStart = dp(20)
-                    marginEnd = dp(20)
+                    marginStart = dp(12)
+                    marginEnd = dp(12)
+                    bottomMargin = dp(28)
                 }
             )
         }
