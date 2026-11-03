@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 
 import '../../../core/cloud/cloud_gateway.dart';
 import '../../../core/detection/threat_list_store.dart';
@@ -118,7 +119,29 @@ class ProfileScreen extends ConsumerWidget {
                   title: 'Akses Notifikasi',
                   subtitle: 'Membaca notifikasi SMS & aplikasi pesan',
                   granted: status?.notificationAccess ?? false,
-                  onTap: bridge.openNotificationAccessSettings,
+                  onTap: () async {
+                    final ok = await _showDisclosure(
+                      context,
+                      title: 'Izinkan RONDA membaca notifikasi?',
+                      body:
+                          'RONDA membaca teks notifikasi SMS, WhatsApp, Telegram '
+                          'dan aplikasi pesan lain HANYA untuk mendeteksi penipuan, '
+                          'phishing, dan file APK berbahaya.\n\n'
+                          '• Isi pesan tidak disimpan dan tidak dijual.\n'
+                          '• Teks yang dianalisis AI disamarkan dari nomor, email, '
+                          'dan angka panjang.\n'
+                          '• Pesan dari kontak tersimpan dilewati.\n\n'
+                          'Di layar berikutnya, aktifkan RONDA pada daftar Akses '
+                          'Notifikasi.\n\n'
+                          'Jika opsinya abu-abu (aplikasi dipasang manual, Android '
+                          '13+): buka Info Aplikasi RONDA → menu ⋮ → "Izinkan '
+                          'setelan terbatas", lalu ulangi.',
+                      confirmLabel: 'Lanjut',
+                      extraLabel: 'Buka Info Aplikasi',
+                      onExtra: openAppSettings,
+                    );
+                    if (ok) await bridge.openNotificationAccessSettings();
+                  },
                 ),
                 const Divider(),
                 _PermissionTile(
@@ -136,9 +159,32 @@ class ProfileScreen extends ConsumerWidget {
                       'Pesan dari kontak tersimpan dilewati, tidak dianalisis',
                   granted: status?.contacts ?? false,
                   onTap: () async {
+                    final ok = await _showDisclosure(
+                      context,
+                      title: 'Izinkan akses kontak?',
+                      body:
+                          'RONDA memeriksa apakah pengirim pesan ada di kontak '
+                          'Anda. Jika ya, pesan itu dilewati dan tidak dianalisis.\n\n'
+                          '• Daftar kontak tidak dibaca ke server dan tidak '
+                          'disimpan.\n'
+                          '• Pemeriksaan dilakukan di perangkat Anda.\n'
+                          '• Izin ini opsional; tanpanya semua pengirim '
+                          'dianalisis.',
+                      confirmLabel: 'Izinkan',
+                    );
+                    if (!ok) return;
                     await bridge.requestContacts();
                     ref.read(protectionStatusProvider.notifier).refresh();
                   },
+                ),
+                const Divider(),
+                _PermissionTile(
+                  icon: Icons.battery_charging_full_rounded,
+                  title: 'Tanpa Batasan Baterai',
+                  subtitle:
+                      'Agar proteksi tidak dimatikan sistem saat aplikasi ditutup',
+                  granted: status?.battery ?? false,
+                  onTap: bridge.openBatterySettings,
                 ),
               ],
             ),
@@ -201,6 +247,38 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Penjelasan yang tampil SEBELUM pengguna dibawa ke izin sensitif
+/// (syarat "prominent disclosure" Google Play). `true` bila pengguna lanjut.
+Future<bool> _showDisclosure(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String confirmLabel,
+  String? extraLabel,
+  Future<void> Function()? onExtra,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: SingleChildScrollView(child: Text(body)),
+      actions: [
+        if (extraLabel != null && onExtra != null)
+          TextButton(onPressed: onExtra, child: Text(extraLabel)),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
 }
 
 class _InfoRow extends StatelessWidget {

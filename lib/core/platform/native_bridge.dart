@@ -88,6 +88,8 @@ class NativeBridge {
   Future<void> openNotificationAccessSettings() =>
       _invokeVoid('openNotificationAccessSettings');
   Future<void> openOverlaySettings() => _invokeVoid('openOverlaySettings');
+  Future<bool> isBatteryUnrestricted() => _invokeBool('isBatteryUnrestricted');
+  Future<void> openBatterySettings() => _invokeVoid('openBatterySettings');
 
   Future<bool> isContactsGranted() async =>
       _supported && await Permission.contacts.isGranted;

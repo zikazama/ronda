@@ -9,6 +9,7 @@ class ProtectionStatus {
     required this.notificationAccess,
     required this.overlay,
     required this.contacts,
+    this.battery = false,
   });
 
   /// `false` di web/desktop: pemantauan notifikasi hanya ada di Android.
@@ -16,6 +17,10 @@ class ProtectionStatus {
   final bool notificationAccess;
   final bool overlay;
   final bool contacts;
+
+  /// Dikecualikan dari optimasi baterai. Tanpa ini banyak HP (Xiaomi, Oppo,
+  /// Vivo, Samsung) mematikan pembaca notifikasi di latar belakang.
+  final bool battery;
 
   /// Pemantauan + peringatan siap. Izin kontak opsional (tanpanya semua
   /// pengirim dianalisis, termasuk kontak tersimpan).
@@ -45,12 +50,14 @@ class ProtectionStatusNotifier extends AsyncNotifier<ProtectionStatus> {
       bridge.isNotificationAccessGranted(),
       bridge.isOverlayGranted(),
       bridge.isContactsGranted(),
+      bridge.isBatteryUnrestricted(),
     ]);
     return ProtectionStatus(
       supported: true,
       notificationAccess: results[0],
       overlay: results[1],
       contacts: results[2],
+      battery: results[3],
     );
   }
 }

@@ -87,6 +87,12 @@ object Bridge {
                 )
                 result.success(null)
             }
+            "isBatteryUnrestricted" -> result.success(isBatteryUnrestricted())
+            "openBatterySettings" -> {
+                // Daftar pengecualian hemat baterai; tidak butuh izin tambahan.
+                launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                result.success(null)
+            }
             "showOverlay" -> result.success(showOverlay(call))
             "dismissOverlay" -> {
                 OverlayManager.dismiss(appContext)
@@ -116,6 +122,12 @@ object Bridge {
         }
         if (call.argument<Boolean>("playAlarm") != false) AlertPlayer.alert(appContext)
         return true
+    }
+
+    /** `true` bila RONDA dikecualikan dari optimasi baterai (listener tidak dimatikan sistem). */
+    private fun isBatteryUnrestricted(): Boolean {
+        val pm = appContext.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        return pm.isIgnoringBatteryOptimizations(appContext.packageName)
     }
 
     private fun isNotificationAccessGranted(): Boolean {

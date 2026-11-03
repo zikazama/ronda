@@ -80,12 +80,18 @@ Butuh JDK 17 dan Android SDK (platform 36 & 37, build-tools 36.0.0).
 
 ```bash
 flutter build apk --debug      # build/app/outputs/flutter-apk/app-debug.apk
-flutter build apk --release    # R8 aktif; saat ini ditandatangani kunci debug
+flutter build apk --release    # R8 aktif; ditandatangani keystore rilis bila android/key.properties ada
 ```
 
 Catatan: `compileSdk = 37` karena `permission_handler_android` menuntutnya; AGP 9.1
 baru merekomendasikan sampai 36 (peringatan disenyapkan di `gradle.properties`).
-Untuk rilis publik buat keystore sendiri dan daftarkan SHA-256-nya di App Check.
+Keystore rilis: `android/key.properties` (di-gitignore) menunjuk ke file `.jks` di luar repo
+(`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Tanpa file itu build rilis jatuh ke kunci
+debug. **Cadangkan file `.jks` dan kata sandinya** — hilang berarti tidak bisa merilis pembaruan
+dengan identitas yang sama. Daftarkan SHA-256-nya di Firebase bila memakai App Check Play Integrity.
+
+Dokumen pendukung: `docs/DEVICE_TEST_CHECKLIST.md` (uji HP & instal manual) dan
+`docs/PRIVACY_POLICY.md` (draf kebijakan privasi untuk Play Store).
 
 Setelah terpasang: Profil → aktifkan **Akses notifikasi** dan **Tampil di atas aplikasi lain**.
 
